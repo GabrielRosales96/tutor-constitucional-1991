@@ -130,11 +130,15 @@ class TutorConstitucional:  # clase TutorConstitucional: Canaliza cada pregunta 
             texto = self.generador.generar(mensajes, fragmentos)  # respuesta del modelo
             modo = getattr(self.generador, "modo", "llm")  # modo usado
         except Exception as error:  # fallo en tiempo de ejecución (memoria, etc.)
-            print(f"[aviso] Falló la generación: {error}. Se usa el modo extractivo.")  # informa
+            detalle_error = f"{type(error).__name__}: {error}"
+            token = __import__("os").getenv("HF_TOKEN", "")
+            if token:
+                detalle_error = detalle_error.replace(token, "[TOKEN OCULTO]")
+            print(f"[aviso] Falló la generación: {detalle_error}. Se usa el modo extractivo.")  # informa
             texto, modo = self.respaldo.generar(mensajes, fragmentos), "extractivo"  # respaldo
         texto, validas, invalidas = verificar_citas(texto, fragmentos)  # verificación de citas
         memoria.agregar(pregunta, texto)  # guarda el intercambio en la memoria de sesión
-        return self._salida("normal", texto, t0, fuentes=fragmentos, modo=modo, citas_validas=validas, citas_invalidas=invalidas)  # resultado
+        return self._salida("normal", texto, t0, fuentes=fragmentos, modo=modo, citas_validas=validas, citas_invalidas=invalidas, detalle_error=locals().get("detalle_error"))  # resultado
 
 
 def crear_tutor(cfg: Config | None = None, usar_llm: bool = True, forzar_lexico: bool = False) -> TutorConstitucional:  # función crear_tutor: Construye todas las piezas del sistema a partir de la configuración.
