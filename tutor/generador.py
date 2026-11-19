@@ -3,6 +3,33 @@
 from __future__ import annotations
 
 from threading import Lock
+import os
+
+
+class GeneradorHuggingFace:
+    """Generación con un LLM abierto mediante la cuota gratuita de Hugging Face."""
+
+    modo = "llm"
+
+    def __init__(self, cfg, token: str):
+        from huggingface_hub import InferenceClient
+
+        self.cfg = cfg
+        self.nombre = "Qwen2.5-1.5B-Instruct (Hugging Face Inference)"
+        self.cliente = InferenceClient(model=cfg.modelo_llm_gpu, token=token, timeout=60)
+
+    def generar(self, mensajes: list[dict], fragmentos: list[dict] | None = None) -> str:
+        """Genera una respuesta conversacional usando el contexto RAG recibido."""
+        salida = self.cliente.chat_completion(
+            messages=mensajes,
+            max_tokens=self.cfg.max_tokens_nuevos_gpu,
+            temperature=self.cfg.temperatura,
+            top_p=self.cfg.top_p,
+        )
+        texto = salida.choices[0].message.content or ""
+        if not texto.strip():
+            raise RuntimeError("El modelo devolvió una respuesta vacía.")
+        return texto.strip()
 
 
 class GeneradorLLM:
@@ -101,10 +128,14 @@ class GeneradorExtractivo:
 
 
 def crear_generador(cfg, usar_llm: bool = True):
-    """Crea el LLM cuantizado; si falla su carga, activa el respaldo extractivo."""
+    """Prioriza el LLM abierto en Hugging Face y conserva el respaldo extractivo."""
     if usar_llm:
-        try:
-            return GeneradorLLM(cfg)
-        except Exception as error:
-            print(f"[aviso] No se pudo cargar el LLM GGUF: {error}. Se usa el modo extractivo.")
+        token = os.getenv("HF_TOKEN", "").strip()
+        if token:
+            try:
+                return GeneradorHuggingFace(cfg, token)
+            except Exception as error:
+                print(f"[aviso] No se pudo inicializar Hugging Face: {error}. Se usa el modo extractivo.")
+        else:
+            print("[aviso] HF_TOKEN no está configurado. Se usa el modo extractivo.")
     return GeneradorExtractivo()
