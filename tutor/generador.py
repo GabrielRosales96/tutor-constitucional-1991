@@ -16,7 +16,7 @@ class GeneradorHuggingFace:
 
         self.cfg = cfg
         self.nombre = "Qwen2.5-1.5B-Instruct (Hugging Face Inference)"
-        self.cliente = InferenceClient(model=cfg.modelo_llm_gpu, token=token, timeout=60)
+        self.cliente = InferenceClient(model=cfg.modelo_llm_gpu, provider="auto", token=token, timeout=60)
 
     def generar(self, mensajes: list[dict], fragmentos: list[dict] | None = None) -> str:
         """Genera una respuesta conversacional usando el contexto RAG recibido."""
