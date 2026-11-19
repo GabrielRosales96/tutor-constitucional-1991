@@ -100,7 +100,7 @@ if pregunta:
 
         if resultado.get("modo") == "extractivo":
             st.info(
-                "Modo sin modelo de lenguaje: te muestro el texto constitucional tal cual."
+                "Modo sin modelo de lenguaje: uso explicaciones guiadas y texto constitucional recuperado."
             )
 
     st.session_state.mensajes.append(
