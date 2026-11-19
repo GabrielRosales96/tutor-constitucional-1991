@@ -119,7 +119,7 @@ class TutorConstitucional:  # clase TutorConstitucional: Canaliza cada pregunta 
                 numero = resultado["articulo"]
                 if numero not in articulos_relevantes:
                     articulos_relevantes.append(numero)
-                if len(articulos_relevantes) == 2:
+                if len(articulos_relevantes) == 1:
                     break
             fragmentos = [
                 f for numero in articulos_relevantes
