@@ -2,6 +2,8 @@
 """Generación de respuestas con Qwen2.5 cuantizado en GGUF y respaldo extractivo."""
 from __future__ import annotations
 
+from threading import Lock
+
 
 class GeneradorLLM:
     """Carga Qwen2.5-0.5B-Instruct en GGUF Q4 para inferencia CPU de bajo consumo."""
@@ -15,6 +17,9 @@ class GeneradorLLM:
         self.cfg = cfg
         self.nombre = "Qwen2.5-0.5B-Instruct (GGUF Q4_K_M)"
         self.max_tokens = cfg.max_tokens_nuevos_cpu
+        # Streamlit comparte este generador entre sesiones; llama.cpp no debe
+        # recibir inferencias simultáneas sobre la misma instancia.
+        self._lock = Lock()
 
         # El archivo cuantizado ocupa menos memoria que los pesos FP32 de Transformers.
         ruta_modelo = hf_hub_download(
@@ -23,7 +28,7 @@ class GeneradorLLM:
         )
         self.modelo = Llama(
             model_path=ruta_modelo,
-            n_ctx=2048,
+            n_ctx=4096,
             n_threads=2,
             n_batch=128,
             use_mmap=True,
@@ -33,13 +38,17 @@ class GeneradorLLM:
 
     def generar(self, mensajes: list[dict], fragmentos: list[dict] | None = None) -> str:
         """Genera una respuesta usando la plantilla de chat incorporada en el GGUF."""
-        salida = self.modelo.create_chat_completion(
-            messages=mensajes,
-            max_tokens=self.max_tokens,
-            temperature=self.cfg.temperatura,
-            top_p=self.cfg.top_p,
-            repeat_penalty=self.cfg.penalizacion_repeticion,
-        )
+        # La instancia se comparte mediante st.cache_resource. Serializar las
+        # llamadas evita corrupción de lotes/estado interno en inferencias
+        # concurrentes de distintas sesiones de Streamlit.
+        with self._lock:
+            salida = self.modelo.create_chat_completion(
+                messages=mensajes,
+                max_tokens=self.max_tokens,
+                temperature=self.cfg.temperatura,
+                top_p=self.cfg.top_p,
+                repeat_penalty=self.cfg.penalizacion_repeticion,
+            )
         texto = salida["choices"][0]["message"].get("content", "")
         return texto.strip()
 
