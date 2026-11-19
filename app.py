@@ -104,10 +104,11 @@ if pregunta:
                 mostrar_fuentes(resultado["fuentes"])
 
         if resultado.get("modo") == "extractivo":
-            st.info(
-                "Modo de respaldo: se muestran explicaciones guiadas y el texto constitucional. "
-                "Para activar respuestas generadas por el modelo abierto, configura HF_TOKEN "
-                "en los Secrets de Streamlit Cloud."
+            motivo = resultado.get("detalle_error") or getattr(
+                tutor.generador, "motivo_respaldo", "No se recibió información adicional del generador."
+            )
+            st.warning(
+                "La respuesta se generó en modo de respaldo. Diagnóstico: " + str(motivo)
             )
 
     st.session_state.mensajes.append(
