@@ -1,0 +1,3 @@
+[server]
+# Evita que el observador de archivos inspeccione módulos nativos como torch.classes.
+fileWatcherType = "none"
