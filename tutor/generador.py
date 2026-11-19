@@ -63,10 +63,16 @@ class GeneradorExtractivo:
         """Construye una respuesta literal a partir de los fragmentos más relevantes."""
         if not fragmentos:
             return "No encuentro ese tema en los fragmentos de la Constitución que consulté."
-        lineas = ["Esto es lo que dice la Constitución sobre tu pregunta (texto literal, sin explicación automática):"]
-        for f in fragmentos[:2]:
-            texto = f["texto"] if len(f["texto"]) <= 700 else f["texto"][:700].rsplit(" ", 1)[0] + "…"
-            lineas.append(f"\n**[Art. {f['articulo']}]** {texto}")
+        lineas = ["Esto es lo que dice la Constitución sobre tu pregunta:"]
+        # Agrupa todas las partes de cada artículo en orden para no mostrar
+        # fragmentos aislados que empiecen o terminen a mitad de una frase.
+        por_articulo = {}
+        for f in fragmentos:
+            por_articulo.setdefault(f["articulo"], []).append(f)
+        for numero, partes in list(por_articulo.items())[:2]:
+            partes.sort(key=lambda x: x.get("parte", 1))
+            texto = " ".join(p["texto"].strip() for p in partes)
+            lineas.append(f"\n**[Art. {numero}]** {texto}")
         lineas.append("\nSi algo no se entiende, pide a tu docente que lo explique con un ejemplo.")
         return "\n".join(lineas)
 
