@@ -47,7 +47,7 @@ class MemoriaCorta:  # clase MemoriaCorta: Guarda como máximo N pares (pregunta
 def consulta_para_recuperar(pregunta: str, memoria: MemoriaCorta) -> str:  # función consulta_para_recuperar: Si la pregunta depende de lo anterior («¿y qué requisitos tiene esa…
     """Si la pregunta depende de lo anterior («¿y qué requisitos tiene esa acción?»), le agrega la pregunta previa."""
     t = normalizar(pregunta)  # texto normalizado
-    es_corta = len(t.split()) <= 7  # preguntas cortas suelen depender del contexto
+    es_corta = len(t.split()) <= 12  # preguntas cortas suelen depender del contexto
     if memoria.ultima_pregunta() and es_corta and ANAFORAS.search(t):  # hay historial y señales de referencia
         return f"{memoria.ultima_pregunta()} {pregunta}"  # se combinan para recuperar mejor
     return pregunta  # en otro caso se usa la pregunta tal cual
