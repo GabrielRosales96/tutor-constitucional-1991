@@ -12,8 +12,10 @@ st.set_page_config(page_title="Tutor Constitucional 1991", page_icon="📘", lay
 
 @st.cache_resource(show_spinner="Cargando el tutor (la primera vez puede tardar unos minutos)…")
 def cargar_tutor():
-    """Crea el tutor: embeddings, índice y modelo de lenguaje."""
-    return crear_tutor(Config())
+    """Crea el tutor en modo extractivo temporal para aislar el fallo de llama.cpp."""
+    # Diagnóstico: se desactiva únicamente el LLM GGUF; se conservan embeddings,
+    # recuperación RAG, memoria, filtros, fuentes y la interfaz Streamlit.
+    return crear_tutor(Config(), usar_llm=False)
 
 
 def mostrar_fuentes(fuentes):
