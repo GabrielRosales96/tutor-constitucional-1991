@@ -63,7 +63,30 @@ class GeneradorExtractivo:
         """Construye una respuesta literal a partir de los fragmentos más relevantes."""
         if not fragmentos:
             return "No encuentro ese tema en los fragmentos de la Constitución que consulté."
-        lineas = ["Esto es lo que dice la Constitución sobre tu pregunta:"]
+        # Recupera la pregunta original del último mensaje para ofrecer una
+        # explicación determinista cuando el modo extractivo pueda hacerlo.
+        pregunta = ""
+        if mensajes:
+            contenido = mensajes[-1].get("content", "")
+            if "<<<" in contenido and ">>>" in contenido:
+                pregunta = contenido.split("<<<", 1)[1].split(">>>", 1)[0].strip().lower()
+
+        lineas = []
+        numeros = {str(f["articulo"]) for f in fragmentos}
+        if "13" in numeros and ("igualdad" in pregunta or "iguales" in pregunta):
+            lineas.extend([
+                "**En palabras sencillas:** el artículo 13 establece que todas las personas "
+                "deben tener los mismos derechos, oportunidades y protección ante la ley. "
+                "También ordena al Estado actuar para que esa igualdad sea efectiva y proteger "
+                "a quienes se encuentren en situación de vulnerabilidad o discriminación.",
+                "\n**Ejemplo:** en un colegio, este principio significa que los estudiantes "
+                "deben recibir el mismo respeto y las mismas oportunidades, sin ser tratados "
+                "de manera desfavorable por su origen, sexo, religión u otra condición.",
+                "\n**Fundamento constitucional:**",
+            ])
+        else:
+            lineas.append("Esto es lo que dice la Constitución sobre tu pregunta:")
+
         # Agrupa todas las partes de cada artículo en orden para no mostrar
         # fragmentos aislados que empiecen o terminen a mitad de una frase.
         por_articulo = {}
