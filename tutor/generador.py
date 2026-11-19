@@ -1,34 +1,48 @@
 # -*- coding: utf-8 -*-
-"""Generación de respuestas con Qwen2.5 cuantizado en GGUF y respaldo extractivo."""
+"""Generación con Groq y respaldo extractivo para el Tutor Constitucional."""
 from __future__ import annotations
 
 from threading import Lock
 import os
 
 
-class GeneradorHuggingFace:
-    """Generación con un LLM abierto mediante la cuota gratuita de Hugging Face."""
+class GeneradorGroq:
+    """Generación con un modelo de pesos abiertos mediante la API de Groq."""
 
     modo = "llm"
 
-    def __init__(self, cfg, token: str):
-        from huggingface_hub import InferenceClient
-
+    def __init__(self, cfg, api_key: str):
         self.cfg = cfg
-        self.nombre = "Qwen2.5-1.5B-Instruct (Hugging Face Inference)"
-        self.cliente = InferenceClient(model=cfg.modelo_llm_gpu, provider="auto", token=token, timeout=60)
+        self.nombre = "GPT-OSS 20B (Groq)"
+        self.api_key = api_key
+        self.modelo = os.getenv("TUTOR_LLM_GROQ", "openai/gpt-oss-20b")
+        self.url = "https://api.groq.com/openai/v1/chat/completions"
 
     def generar(self, mensajes: list[dict], fragmentos: list[dict] | None = None) -> str:
-        """Genera una respuesta conversacional usando el contexto RAG recibido."""
-        salida = self.cliente.chat_completion(
-            messages=mensajes,
-            max_tokens=self.cfg.max_tokens_nuevos_gpu,
-            temperature=self.cfg.temperatura,
-            top_p=self.cfg.top_p,
+        """Envía los mensajes y el contexto RAG al endpoint compatible con OpenAI."""
+        import requests
+
+        respuesta = requests.post(
+            self.url,
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": self.modelo,
+                "messages": mensajes,
+                "max_completion_tokens": max(900, self.cfg.max_tokens_nuevos_gpu),
+            },
+            timeout=90,
         )
-        texto = salida.choices[0].message.content or ""
+        if not respuesta.ok:
+            raise RuntimeError(
+                f"Groq API ({respuesta.status_code}): {respuesta.text[:1000]}"
+            )
+        datos = respuesta.json()
+        texto = datos["choices"][0]["message"].get("content") or ""
         if not texto.strip():
-            raise RuntimeError("El modelo devolvió una respuesta vacía.")
+            raise RuntimeError("Groq devolvió una respuesta vacía.")
         return texto.strip()
 
 
@@ -128,20 +142,13 @@ class GeneradorExtractivo:
 
 
 def crear_generador(cfg, usar_llm: bool = True):
-    """Prioriza el LLM abierto en Hugging Face y conserva el respaldo extractivo."""
+    """Prioriza GPT-OSS 20B mediante Groq y conserva el respaldo extractivo."""
     if usar_llm:
-        token = os.getenv("HF_TOKEN", "").strip()
-        if token:
-            try:
-                return GeneradorHuggingFace(cfg, token)
-            except Exception as error:
-                print(f"[aviso] No se pudo inicializar Hugging Face: {type(error).__name__}: {error}. Se usa el modo extractivo.")
-                respaldo = GeneradorExtractivo()
-                respaldo.motivo_respaldo = f"No se pudo inicializar Hugging Face ({type(error).__name__}): {error}"
-                return respaldo
-        else:
-            print("[aviso] HF_TOKEN no está configurado. Se usa el modo extractivo.")
-            respaldo = GeneradorExtractivo()
-            respaldo.motivo_respaldo = "No se detectó HF_TOKEN en las variables de entorno."
-            return respaldo
+        api_key = os.getenv("GROQ_API_KEY", "").strip()
+        if api_key:
+            return GeneradorGroq(cfg, api_key)
+        print("[aviso] GROQ_API_KEY no está configurada. Se usa el modo extractivo.")
+        respaldo = GeneradorExtractivo()
+        respaldo.motivo_respaldo = "No se detectó GROQ_API_KEY en las variables de entorno."
+        return respaldo
     return GeneradorExtractivo()
