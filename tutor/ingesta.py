@@ -177,22 +177,32 @@ def cargar_articulos(ruta: Path) -> list[dict]:  # función cargar_articulos: Le
         return [json.loads(linea) for linea in f if linea.strip()]  # una entrada por línea
 
 
-def _cortar(texto: str, maximo: int, solape: int) -> list[str]:  # función _cortar: Divide un texto largo en ventanas, intentando cortar en un punto o…
-    """Divide un texto largo en ventanas, intentando cortar en un punto o salto natural."""
-    partes = []  # ventanas resultantes
-    inicio = 0  # posición inicial de la ventana
-    while inicio < len(texto):  # mientras quede texto por cubrir
-        fin = min(inicio + maximo, len(texto))  # fin tentativo de la ventana
-        if fin < len(texto):  # si no es la última ventana
-            corte = max(texto.rfind(". ", inicio, fin), texto.rfind("; ", inicio, fin))  # último punto o punto y coma
-            if corte > inicio + maximo // 2:  # solo si el corte no deja una ventana demasiado corta
-                fin = corte + 1  # se corta después del signo
-        partes.append(texto[inicio:fin].strip())  # guarda la ventana
-        if fin >= len(texto):  # si ya se cubrió todo
-            break  # termina
-        inicio = max(fin - solape, inicio + 1)  # la siguiente ventana retrocede para solapar
-    return partes  # devuelve las ventanas
-
+def _cortar(texto: str, maximo: int, solape: int) -> list[str]:
+    """Divide textos largos sin repetir contenido ni cortar palabras."""
+    partes = []
+    inicio = 0
+    while inicio < len(texto):
+        fin = min(inicio + maximo, len(texto))
+        if fin < len(texto):
+            corte = max(texto.rfind(". ", inicio, fin), texto.rfind("; ", inicio, fin))
+            if corte > inicio + maximo // 2:
+                fin = corte + 1
+            else:
+                espacio = texto.rfind(" ", inicio, fin)
+                if espacio > inicio + maximo // 2:
+                    fin = espacio
+                else:
+                    siguiente = texto.find(" ", fin)
+                    if siguiente != -1:
+                        fin = siguiente
+        parte = texto[inicio:fin].strip()
+        if parte:
+            partes.append(parte)
+        if fin >= len(texto):
+            break
+        # No solapar ventanas: el solapamiento anterior duplicaba frases al unirlas.
+        inicio = fin
+    return partes
 
 def fragmentar(articulos: list[dict], maximo: int = 1200, solape: int = 150) -> list[dict]:  # función fragmentar: Crea los fragmentos indexables: un fragmento por artículo, o varias…
     """Crea los fragmentos indexables: un fragmento por artículo, o varias partes si es muy largo."""
