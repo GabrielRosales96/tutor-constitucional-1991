@@ -1,66 +1,110 @@
 # -*- coding: utf-8 -*-
 """Interfaz web (Streamlit) del Tutor Constitucional 1991."""
-import streamlit as st  # framework de interfaz web de código abierto
+import streamlit as st
 
-from tutor.config import AVISO_LEGAL, PREGUNTAS_SUGERIDAS, Config  # textos y configuración centralizados
-from tutor.memoria import MemoriaCorta  # memoria de corto plazo
-from tutor.prompts import NIVELES  # niveles escolares disponibles
-from tutor.tutor import crear_tutor  # fábrica del sistema completo
+from tutor.config import AVISO_LEGAL, PREGUNTAS_SUGERIDAS, Config
+from tutor.memoria import MemoriaCorta
+from tutor.prompts import NIVELES
+from tutor.tutor import crear_tutor
 
-st.set_page_config(page_title="Tutor Constitucional 1991", page_icon="📘", layout="centered")  # título de la pestaña
+st.set_page_config(page_title="Tutor Constitucional 1991", page_icon="📘", layout="centered")
 
 
-@st.cache_resource(show_spinner="Cargando el tutor (la primera vez puede tardar unos minutos)…")  # se carga una sola vez por servidor
-def cargar_tutor():  # función cargar_tutor: Crea el tutor: embeddings, índice y modelo de lenguaje.
+@st.cache_resource(show_spinner="Cargando el tutor (la primera vez puede tardar unos minutos)…")
+def cargar_tutor():
     """Crea el tutor: embeddings, índice y modelo de lenguaje."""
-    return crear_tutor(Config())  # sistema completo con la configuración por defecto
+    return crear_tutor(Config())
 
 
-tutor = cargar_tutor()  # instancia compartida entre sesiones (solo lectura)
-if "memoria" not in st.session_state:  # cada sesión del navegador tiene su propia memoria
-    st.session_state.memoria = MemoriaCorta(tutor.cfg.memoria_intercambios, tutor.cfg.max_caracteres_respuesta_memoria)  # memoria nueva
-if "mensajes" not in st.session_state:  # historial visible en pantalla
-    st.session_state.mensajes = []  # lista vacía al comenzar
+def mostrar_fuentes(fuentes):
+    """Muestra las fuentes sin asumir que todas tienen una puntuación semántica."""
+    for fuente in fuentes:
+        articulo = fuente.get("articulo", "?")
+        titulo = fuente.get("titulo", "Título no identificado")
+        texto = fuente.get("texto", "")
+        similitud = fuente.get("similitud")
+        indicador = (
+            f"similitud {similitud:.2f}"
+            if isinstance(similitud, (int, float))
+            else "coincidencia exacta"
+        )
+        st.markdown(
+            f"**Artículo {articulo}** · {titulo} · {indicador}\n\n> {texto}"
+        )
 
-with st.sidebar:  # panel lateral con guía de uso
-    st.header("📘 Tutor Constitucional 1991")  # título del panel
-    st.write("Te explico la Constitución Política de Colombia con lenguaje sencillo y te muestro los artículos en que me baso.")  # descripción
-    grado = st.selectbox("Tu nivel", list(NIVELES), index=1, help="Ajusta el vocabulario de las explicaciones. No se guarda.")  # nivel escolar
-    st.subheader("Puedes preguntarme")  # sección de ejemplos
-    for ejemplo in PREGUNTAS_SUGERIDAS:  # recorre las preguntas sugeridas
-        st.markdown(f"- {ejemplo}")  # muestra cada ejemplo
-    st.subheader("Limitaciones")  # sección de límites
-    st.markdown("- Solo hablo de la Constitución de 1991.\n- Si no tengo evidencia, te lo digo.\n- No doy asesoría jurídica personal.")  # límites
-    st.warning(AVISO_LEGAL)  # aviso de posibles errores
-    if st.button("🗑️ Nueva conversación"):  # botón para reiniciar
-        st.session_state.memoria.limpiar()  # borra la memoria de corto plazo
-        st.session_state.mensajes = []  # borra el historial visible
-        st.rerun()  # recarga la página
 
-st.title("📘 Tutor Constitucional 1991")  # título principal
-st.caption("Chatbot educativo con recuperación de fragmentos de la Constitución · Modelos abiertos")  # subtítulo
+tutor = cargar_tutor()
+if "memoria" not in st.session_state:
+    st.session_state.memoria = MemoriaCorta(
+        tutor.cfg.memoria_intercambios,
+        tutor.cfg.max_caracteres_respuesta_memoria,
+    )
+if "mensajes" not in st.session_state:
+    st.session_state.mensajes = []
 
-for m in st.session_state.mensajes:  # muestra la conversación previa
-    with st.chat_message(m["rol"]):  # distingue visualmente estudiante y tutor
-        st.markdown(m["texto"])  # contenido del mensaje
-        if m.get("fuentes"):  # HU-05: el docente puede verificar las fuentes
-            with st.expander("Ver fuentes consultadas"):  # sección desplegable
-                for f in m["fuentes"]:  # recorre los fragmentos
-                    st.markdown(f"**Artículo {f['articulo']}** · {f['titulo']} · similitud {f['similitud']:.2f}\n\n> {f['texto']}")  # cita textual
+with st.sidebar:
+    st.header("📘 Tutor Constitucional 1991")
+    st.write(
+        "Te explico la Constitución Política de Colombia con lenguaje sencillo "
+        "y te muestro los artículos en que me baso."
+    )
+    grado = st.selectbox(
+        "Tu nivel",
+        list(NIVELES),
+        index=1,
+        help="Ajusta el vocabulario de las explicaciones. No se guarda.",
+    )
+    st.subheader("Puedes preguntarme")
+    for ejemplo in PREGUNTAS_SUGERIDAS:
+        st.markdown(f"- {ejemplo}")
+    st.subheader("Limitaciones")
+    st.markdown(
+        "- Solo hablo de la Constitución de 1991.\n"
+        "- Si no tengo evidencia, te lo digo.\n"
+        "- No doy asesoría jurídica personal."
+    )
+    st.warning(AVISO_LEGAL)
+    if st.button("🗑️ Nueva conversación"):
+        st.session_state.memoria.limpiar()
+        st.session_state.mensajes = []
+        st.rerun()
 
-pregunta = st.chat_input("Escribe tu pregunta sobre la Constitución…")  # caja de entrada del chat
-if pregunta:  # si el estudiante envió algo
-    st.session_state.mensajes.append({"rol": "user", "texto": pregunta})  # guarda el turno del estudiante
-    with st.chat_message("user"):  # muestra el turno del estudiante
-        st.markdown(pregunta)  # texto escrito
-    with st.chat_message("assistant"):  # turno del tutor
-        with st.spinner("Buscando en la Constitución…"):  # indicador de espera
-            resultado = tutor.responder(pregunta, st.session_state.memoria, grado)  # flujo completo
-        st.markdown(resultado["respuesta"])  # respuesta del tutor
-        if resultado["fuentes"]:  # si hubo evidencia
-            with st.expander("Ver fuentes consultadas"):  # sección desplegable
-                for f in resultado["fuentes"]:  # recorre los fragmentos
-                    st.markdown(f"**Artículo {f['articulo']}** · {f['titulo']} · similitud {f['similitud']:.2f}\n\n> {f['texto']}")  # cita textual
-        if resultado.get("modo") == "extractivo":  # modo degradado
-            st.info("Modo sin modelo de lenguaje: te muestro el texto constitucional tal cual.")  # aviso
-    st.session_state.mensajes.append({"rol": "assistant", "texto": resultado["respuesta"], "fuentes": resultado["fuentes"]})  # guarda el turno
+st.title("📘 Tutor Constitucional 1991")
+st.caption(
+    "Chatbot educativo con recuperación de fragmentos de la Constitución · Modelos abiertos"
+)
+
+for mensaje in st.session_state.mensajes:
+    with st.chat_message(mensaje["rol"]):
+        st.markdown(mensaje["texto"])
+        if mensaje.get("fuentes"):
+            with st.expander("Ver fuentes consultadas"):
+                mostrar_fuentes(mensaje["fuentes"])
+
+pregunta = st.chat_input("Escribe tu pregunta sobre la Constitución…")
+if pregunta:
+    st.session_state.mensajes.append({"rol": "user", "texto": pregunta})
+    with st.chat_message("user"):
+        st.markdown(pregunta)
+
+    with st.chat_message("assistant"):
+        with st.spinner("Buscando en la Constitución…"):
+            resultado = tutor.responder(pregunta, st.session_state.memoria, grado)
+
+        st.markdown(resultado["respuesta"])
+        if resultado["fuentes"]:
+            with st.expander("Ver fuentes consultadas"):
+                mostrar_fuentes(resultado["fuentes"])
+
+        if resultado.get("modo") == "extractivo":
+            st.info(
+                "Modo sin modelo de lenguaje: te muestro el texto constitucional tal cual."
+            )
+
+    st.session_state.mensajes.append(
+        {
+            "rol": "assistant",
+            "texto": resultado["respuesta"],
+            "fuentes": resultado["fuentes"],
+        }
+    )
