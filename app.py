@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Interfaz web (Streamlit) del Tutor Constitucional 1991."""
+import os
 import streamlit as st
 
 from tutor.config import AVISO_LEGAL, PREGUNTAS_SUGERIDAS, Config
@@ -12,10 +13,14 @@ st.set_page_config(page_title="Tutor Constitucional 1991", page_icon="📘", lay
 
 @st.cache_resource(show_spinner="Cargando el tutor (la primera vez puede tardar unos minutos)…")
 def cargar_tutor():
-    """Crea el tutor en modo extractivo temporal para aislar el fallo de llama.cpp."""
-    # Diagnóstico: se desactiva únicamente el LLM GGUF; se conservan embeddings,
-    # recuperación RAG, memoria, filtros, fuentes y la interfaz Streamlit.
-    return crear_tutor(Config(), usar_llm=False)
+    """Crea el tutor y activa el LLM abierto cuando existe un token de Hugging Face."""
+    try:
+        token = st.secrets.get("HF_TOKEN", "")
+        if token:
+            os.environ["HF_TOKEN"] = token
+    except Exception:
+        pass
+    return crear_tutor(Config(), usar_llm=True)
 
 
 def mostrar_fuentes(fuentes):
@@ -100,7 +105,9 @@ if pregunta:
 
         if resultado.get("modo") == "extractivo":
             st.info(
-                "Modo sin modelo de lenguaje: uso explicaciones guiadas y texto constitucional recuperado."
+                "Modo de respaldo: se muestran explicaciones guiadas y el texto constitucional. "
+                "Para activar respuestas generadas por el modelo abierto, configura HF_TOKEN "
+                "en los Secrets de Streamlit Cloud."
             )
 
     st.session_state.mensajes.append(
