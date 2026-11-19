@@ -13,11 +13,11 @@ st.set_page_config(page_title="Tutor Constitucional 1991", page_icon="📘", lay
 
 @st.cache_resource(show_spinner="Cargando el tutor (la primera vez puede tardar unos minutos)…")
 def cargar_tutor():
-    """Crea el tutor y activa el LLM abierto cuando existe un token de Hugging Face."""
+    """Crea el tutor y activa GPT-OSS cuando existe una clave de Groq."""
     try:
-        token = st.secrets.get("HF_TOKEN", "")
-        if token:
-            os.environ["HF_TOKEN"] = token
+        api_key = st.secrets.get("GROQ_API_KEY", "")
+        if api_key:
+            os.environ["GROQ_API_KEY"] = api_key
     except Exception:
         pass
     return crear_tutor(Config(), usar_llm=True)
