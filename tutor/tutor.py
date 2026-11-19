@@ -107,9 +107,24 @@ class TutorConstitucional:  # clase TutorConstitucional: Canaliza cada pregunta 
             texto = ("No encuentro ese tema en la Constitución de 1991. Puede que esté fuera de mi alcance o que necesite "  # continuación de la instrucción anterior
                      "otras palabras. ¿Puedes reformular la pregunta o decirme qué artículo o tema buscas?")  # abstención (RF-05)
             return self._salida("sin_evidencia", texto, t0, modo="filtro", mejor_similitud=semanticos[0]["similitud"] if semanticos else 0.0)  # sin LLM
-        vistos = {(f["articulo"], f["parte"]) for f in directos}  # fragmentos ya incluidos
-        extra = [f for f in semanticos if f["similitud"] >= umbral - self.cfg.margen_fragmentos and (f["articulo"], f["parte"]) not in vistos]  # relevantes
-        fragmentos = (directos + extra)[: max(self.cfg.top_k, len(directos))]  # los pedidos primero, luego los más similares
+        if directos:  # si se pidió un artículo, no se mezclan artículos vecinos
+            fragmentos = directos
+        else:
+            # La búsqueda semántica identifica artículos pertinentes; luego se recuperan
+            # todas sus partes para evitar respuestas que empiecen a mitad de una frase.
+            articulos_relevantes = []
+            for resultado in semanticos:
+                if resultado["similitud"] < umbral - self.cfg.margen_fragmentos:
+                    continue
+                numero = resultado["articulo"]
+                if numero not in articulos_relevantes:
+                    articulos_relevantes.append(numero)
+                if len(articulos_relevantes) == 2:
+                    break
+            fragmentos = [
+                f for numero in articulos_relevantes
+                for f in self.indice.articulo(numero)
+            ]
         mensajes = construir_mensajes(pregunta, fragmentos, memoria.como_mensajes(), grado, self.cfg.max_caracteres_contexto)  # prompt
         try:  # generación con el LLM
             texto = self.generador.generar(mensajes, fragmentos)  # respuesta del modelo
