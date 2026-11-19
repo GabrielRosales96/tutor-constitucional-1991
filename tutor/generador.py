@@ -135,7 +135,13 @@ def crear_generador(cfg, usar_llm: bool = True):
             try:
                 return GeneradorHuggingFace(cfg, token)
             except Exception as error:
-                print(f"[aviso] No se pudo inicializar Hugging Face: {error}. Se usa el modo extractivo.")
+                print(f"[aviso] No se pudo inicializar Hugging Face: {type(error).__name__}: {error}. Se usa el modo extractivo.")
+                respaldo = GeneradorExtractivo()
+                respaldo.motivo_respaldo = f"No se pudo inicializar Hugging Face ({type(error).__name__}): {error}"
+                return respaldo
         else:
             print("[aviso] HF_TOKEN no está configurado. Se usa el modo extractivo.")
+            respaldo = GeneradorExtractivo()
+            respaldo.motivo_respaldo = "No se detectó HF_TOKEN en las variables de entorno."
+            return respaldo
     return GeneradorExtractivo()
